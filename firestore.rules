@@ -1,0 +1,184 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidNotebook(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.title is string &&
+             data.title.size() >= 1 &&
+             data.title.size() <= 120 &&
+             data.entryCount is int &&
+             data.entryCount >= 0 &&
+             data.entryCount <= 10000 &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    function isValidMathEntry(data, userId, notebookId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.notebookId is string &&
+             data.notebookId == notebookId &&
+             data.expression is string &&
+             data.expression.size() >= 1 &&
+             data.expression.size() <= 1000 &&
+             data.result is string &&
+             data.result.size() <= 4000 &&
+             data.steps is list &&
+             data.steps.size() <= 30 &&
+             (data.steps.size() == 0 || data.steps[0] is string) &&
+             data.domainTag is string &&
+             data.domainTag.size() >= 1 &&
+             data.domainTag.size() <= 60 &&
+             data.graphType in ['NONE', '2D', '3D'] &&
+             data.anchorX is number &&
+             data.anchorY is number &&
+             data.orderIndex is int &&
+             data.orderIndex >= 0 &&
+             data.orderIndex <= 10000 &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    function isValidInkStroke(data, userId, notebookId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.notebookId is string &&
+             data.notebookId == notebookId &&
+             data.colorArgb is int &&
+             data.strokeWidth is number &&
+             data.strokeWidth > 0 &&
+             data.strokeWidth <= 200 &&
+             data.toolType in ['PEN', 'HIGHLIGHTER'] &&
+             data.points is list &&
+             data.points.size() >= 1 &&
+             data.points.size() <= 4000 &&
+             (data.points[0] is map &&
+              data.points[0].x is number &&
+              data.points[0].y is number &&
+              data.points[0].p is number) &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             data.updatedAt is timestamp &&
+             data.updatedAt <= request.time;
+    }
+
+    match /users/{userId}/notebooks/{notebookId} {
+      allow get: if isOwner(userId) && isValidId(notebookId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(notebookId) &&
+                       incoming().keys().hasAll(['userId', 'title', 'entryCount', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'title', 'entryCount', 'createdAt', 'updatedAt']) &&
+                       isValidNotebook(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(notebookId) &&
+                       isValidNotebook(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['title', 'entryCount', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(notebookId);
+
+      match /entries/{entryId} {
+        allow get: if isOwner(userId) && isValidId(notebookId) && isValidId(entryId);
+        allow list: if isOwner(userId) && isValidId(notebookId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(notebookId) &&
+                         isValidId(entryId) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/notebooks/$(notebookId)) &&
+                         incoming().keys().hasAll([
+                           'userId', 'notebookId', 'expression', 'result', 'steps',
+                           'domainTag', 'graphType', 'anchorX', 'anchorY', 'orderIndex',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'notebookId', 'expression', 'result', 'steps',
+                           'domainTag', 'graphType', 'anchorX', 'anchorY', 'orderIndex',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidMathEntry(incoming(), userId, notebookId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(notebookId) &&
+                         isValidId(entryId) &&
+                         isValidMathEntry(incoming(), userId, notebookId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().notebookId == existing().notebookId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'expression', 'result', 'steps', 'domainTag', 'graphType',
+                           'anchorX', 'anchorY', 'orderIndex', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(notebookId) && isValidId(entryId);
+      }
+
+      match /strokes/{strokeId} {
+        allow get: if isOwner(userId) && isValidId(notebookId) && isValidId(strokeId);
+        allow list: if isOwner(userId) && isValidId(notebookId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(notebookId) &&
+                         isValidId(strokeId) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/notebooks/$(notebookId)) &&
+                         incoming().keys().hasAll([
+                           'userId', 'notebookId', 'colorArgb', 'strokeWidth',
+                           'toolType', 'points', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'notebookId', 'colorArgb', 'strokeWidth',
+                           'toolType', 'points', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidInkStroke(incoming(), userId, notebookId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(notebookId) &&
+                         isValidInkStroke(incoming(), userId, notebookId) &&
+                         isValidId(strokeId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().notebookId == existing().notebookId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'colorArgb', 'strokeWidth', 'toolType', 'points', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(notebookId) && isValidId(strokeId);
+      }
+    }
+  }
+}

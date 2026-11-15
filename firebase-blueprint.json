@@ -1,0 +1,172 @@
+{
+  "entities": {
+    "MathNotebook": {
+      "title": "MathNotebook",
+      "description": "A user-owned AuraMath & Canvas Studio notebook sheet.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the math notebook sheet."
+        },
+        "entryCount": {
+          "type": "integer",
+          "description": "Number of evaluated math entries in the notebook."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "title", "entryCount", "createdAt", "updatedAt"]
+    },
+    "MathEntry": {
+      "title": "MathEntry",
+      "description": "An evaluated mathematical expression, variable definition, or graph specification on the canvas.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "notebookId": {
+          "type": "string",
+          "description": "Parent notebook document ID."
+        },
+        "expression": {
+          "type": "string",
+          "description": "Normalized mathematical expression or equation."
+        },
+        "result": {
+          "type": "string",
+          "description": "Evaluated answer or symbolic result."
+        },
+        "steps": {
+          "type": "array",
+          "description": "Step-by-step derivation or solution breakdown."
+        },
+        "domainTag": {
+          "type": "string",
+          "description": "Mathematical domain category."
+        },
+        "graphType": {
+          "type": "string",
+          "enum": ["NONE", "2D", "3D"],
+          "description": "Associated graph visualization mode."
+        },
+        "anchorX": {
+          "type": "number",
+          "description": "Canvas X coordinate where result badge is anchored."
+        },
+        "anchorY": {
+          "type": "number",
+          "description": "Canvas Y coordinate where result badge is anchored."
+        },
+        "orderIndex": {
+          "type": "integer",
+          "description": "Evaluation order for variable cascading."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "notebookId",
+        "expression",
+        "result",
+        "steps",
+        "domainTag",
+        "graphType",
+        "anchorX",
+        "anchorY",
+        "orderIndex",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "InkStroke": {
+      "title": "InkStroke",
+      "description": "A handwritten Bezier ink stroke drawn on the canvas.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID."
+        },
+        "notebookId": {
+          "type": "string",
+          "description": "Parent notebook document ID."
+        },
+        "colorArgb": {
+          "type": "integer",
+          "description": "Stroke ARGB color integer."
+        },
+        "strokeWidth": {
+          "type": "number",
+          "description": "Base stroke width in canvas units."
+        },
+        "toolType": {
+          "type": "string",
+          "enum": ["PEN", "HIGHLIGHTER"],
+          "description": "Drawing tool type."
+        },
+        "points": {
+          "type": "array",
+          "description": "List of {x, y, p} coordinate maps."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "notebookId",
+        "colorArgb",
+        "strokeWidth",
+        "toolType",
+        "points",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/notebooks/{notebookId}": {
+      "schema": { "$ref": "#/entities/MathNotebook" },
+      "description": "User-scoped math notebooks."
+    },
+    "/users/{userId}/notebooks/{notebookId}/entries/{entryId}": {
+      "schema": { "$ref": "#/entities/MathEntry" },
+      "description": "Evaluated math entries inside a notebook."
+    },
+    "/users/{userId}/notebooks/{notebookId}/strokes/{strokeId}": {
+      "schema": { "$ref": "#/entities/InkStroke" },
+      "description": "Handwritten ink strokes inside a notebook."
+    }
+  }
+}

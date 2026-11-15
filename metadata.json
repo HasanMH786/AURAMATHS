@@ -1,0 +1,6 @@
+{
+  "name": "AuraMath",
+  "description": "Handwritten math canvas, 2D/3D engineering graphing, auto-solve engine, and Gemini AI math tutor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
